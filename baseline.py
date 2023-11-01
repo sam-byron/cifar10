@@ -55,7 +55,7 @@ model.compile(optimizer=OPTIMIZER,
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, verbose=VERBOSE,
+history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=VERBOSE,
                     validation_data=(test_images, test_labels), callbacks=[tensorboard_callback])
 
 plt.plot(history.history['accuracy'], label='accuracy')
