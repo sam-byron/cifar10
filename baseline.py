@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # CNN training and testing params
 LEARNING_RATE = 0.001
 # REGULARIZATION
-EPOCHS = 15
+EPOCHS = 10
 BATCH_SIZE = 60
 VERBOSE = 1
 NB_CLASSES = 10
@@ -21,8 +21,9 @@ DIFFICULITY = 2
 
 (train_images, train_labels), (test_images, test_labels) = datasets.cifar10.load_data()
 
-# Normalize pixel values to be between 0 and 1
-train_images, test_images = train_images / 255.0, test_images / 255.0
+# Standardize pixel values
+train_images = (train_images - train_images.mean())/(train_images.std())
+test_images = (test_images - test_images.mean())/(test_images.std())
 
 class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer',
                'dog', 'frog', 'horse', 'ship', 'truck']
