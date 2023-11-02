@@ -19,7 +19,7 @@ VALIDATION_SPLIT = 0.2
 OPTIMIZER = 'adam'
 ACTIVATION = 'relu'
 DROPOUT = 0.3
-DIFFICULITY = 2
+DIFFICULITY = 3
 
 (o_train_images, train_labels), (o_test_images, test_labels) = datasets.cifar10.load_data()
 
@@ -39,21 +39,21 @@ initializer = tf.keras.initializers.GlorotNormal()
 
 model = models.Sequential()
 model.add(layers.Conv2D(32*DIFFICULITY, (3, 3), activation=ACTIVATION, input_shape=(32, 32, 3), kernel_initializer = initializer))
-model.add(layers.Dropout(DROPOUT))
+model.add(layers.SpatialDropout2D(DROPOUT))
+model.add(layers.MaxPooling2D((2, 2)))
+
+
+model.add(layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer))
+model.add(layers.SpatialDropout2D(DROPOUT))
 model.add(layers.MaxPooling2D((2, 2)))
 
 model.add(layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer))
-model.add(layers.Dropout(DROPOUT))
-model.add(layers.MaxPooling2D((2, 2)))
-
-model.add(layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer))
-model.add(layers.Dropout(DROPOUT))
+model.add(layers.SpatialDropout2D(DROPOUT))
 model.summary()
 
 model.add(layers.Flatten())
 model.add(layers.Dense(64*DIFFICULITY, activation=ACTIVATION, kernel_initializer = initializer))
 model.add(layers.Dropout(DROPOUT))
-model.add(tf.keras.layers.BatchNormalization())
 model.add(layers.Dense(10, kernel_initializer = initializer))
 model.summary()
 
