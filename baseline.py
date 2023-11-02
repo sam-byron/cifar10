@@ -21,16 +21,16 @@ ACTIVATION = 'relu'
 DROPOUT = 0.1
 DIFFICULITY = 2
 
-(train_images, train_labels), (test_images, test_labels) = datasets.cifar10.load_data()
+(o_train_images, train_labels), (o_test_images, test_labels) = datasets.cifar10.load_data()
 
 # Shuffle data to hopefully get balanced class representation
-idx_permutes = np.random.permutation(len(train_images))
-train_images = train_images[idx_permutes]
+idx_permutes = np.random.permutation(len(o_train_images))
+train_images = o_train_images[idx_permutes]
 train_labels = train_labels[idx_permutes]
 
 # Standardize pixel values
 train_images = (train_images - train_images.mean())/(train_images.std())
-test_images = (test_images - test_images.mean())/(test_images.std())
+test_images = (o_test_images - o_test_images.mean())/(o_test_images.std())
 
 class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer',
                'dog', 'frog', 'horse', 'ship', 'truck']
@@ -62,9 +62,6 @@ model.compile(optimizer=OPTIMIZER,
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-
-# history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=VERBOSE,
-#                     validation_data=(test_images, test_labels), callbacks=[tensorboard_callback])
 
 history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, verbose=VERBOSE, callbacks=[tensorboard_callback])
 
@@ -99,6 +96,25 @@ test_predictions = model(test_images)
 test_predictions = tf.nn.softmax(test_predictions)
 test_predictions = test_predictions.numpy().argmax(axis=1)
 print(test_predictions[0:10])
+test_labels = test_labels.ravel()
 print(test_labels)
 # https://www.tensorflow.org/api_docs/python/tf/math/confusion_matrix
 print(math.confusion_matrix(test_labels, test_predictions, len(class_names)))
+
+
+mislabeled = tf.not_equal(test_predictions, test_labels)
+# print(len(mislabeled))
+
+plt.clf()
+plt.figure(figsize=(10,10))
+for i in range(100):
+    plt.subplot(10,10,i+1)
+    plt.xticks([])
+    plt.yticks([])
+    plt.grid(False)
+    if mislabeled[i]:
+        plt.imshow(o_test_images[i])
+        # The CIFAR labels happen to be arrays, 
+        # which is why you need the extra index
+        plt.xlabel(class_names[test_predictions[i]])
+plt.show()
