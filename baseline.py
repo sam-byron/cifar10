@@ -60,6 +60,19 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram
 history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=VERBOSE,
                     validation_data=(test_images, test_labels), callbacks=[tensorboard_callback])
 
+
+loss = history.history["loss"]
+val_loss = history.history["val_loss"]
+epochs = range(1, len(loss) + 1)
+plt.plot(epochs, loss, "bo", label="Training Loss")
+plt.plot(epochs, val_loss, "b", label="Validation Loss")
+plt.title("Training and Validation Loss")
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+plt.clf()
 plt.plot(history.history['accuracy'], label='accuracy')
 plt.plot(history.history['val_accuracy'], label = 'val_accuracy')
 plt.xlabel('Epoch')
