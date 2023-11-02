@@ -11,7 +11,7 @@ import numpy as np
 INIT_LEARNING_RATE = 0.001
 DECAY_RATE = 0.9
 # REGULARIZATION
-EPOCHS = 15
+EPOCHS = 10
 BATCH_SIZE = 128
 VERBOSE = 1
 NB_CLASSES = 10
@@ -60,16 +60,17 @@ model.summary()
 
 lr_schedule = optimizers.schedules.ExponentialDecay(
     initial_learning_rate=INIT_LEARNING_RATE,
-    decay_steps=1000,
+    decay_steps=10000,
     decay_rate=DECAY_RATE)
 
-adam_optimizer = optimizers.Adam(learning_rate=lr_schedule)
+adam_optimizer = optimizers.Adam(learning_rate=lr_schedule, use_ema=False)
+
 model.compile(optimizer=adam_optimizer,
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
               metrics=['accuracy'])
 
-log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+# log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir="./logs")
 
 history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, verbose=VERBOSE, callbacks=[tensorboard_callback])
 
