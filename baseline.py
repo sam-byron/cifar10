@@ -2,23 +2,23 @@
 import tensorflow as tf
 import datetime
 
-from tensorflow.keras import datasets, layers, models
+from tensorflow.keras import datasets, layers, models, optimizers, initializers
 import matplotlib.pyplot as plt
 from tensorflow import math
 import numpy as np
 
 # CNN training and testing params
-LEARNING_RATE = 0.001
+INIT_LEARNING_RATE = 0.001
+DECAY_RATE = 0.9
 # REGULARIZATION
-EPOCHS = 10
-BATCH_SIZE = 60
+EPOCHS = 15
+BATCH_SIZE = 128
 VERBOSE = 1
 NB_CLASSES = 10
-N_HIDDEN = 128
 VALIDATION_SPLIT = 0.2
 OPTIMIZER = 'adam'
 ACTIVATION = 'relu'
-DROPOUT = 0.1
+DROPOUT = 0.3
 DIFFICULITY = 2
 
 (o_train_images, train_labels), (o_test_images, test_labels) = datasets.cifar10.load_data()
@@ -35,28 +35,36 @@ test_images = (o_test_images - o_test_images.mean())/(o_test_images.std())
 class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer',
                'dog', 'frog', 'horse', 'ship', 'truck']
 
+initializer = tf.keras.initializers.GlorotNormal()
 
 model = models.Sequential()
-model.add(layers.Conv2D(32*DIFFICULITY, (3, 3), activation=ACTIVATION, input_shape=(32, 32, 3)))
+model.add(layers.Conv2D(32*DIFFICULITY, (3, 3), activation=ACTIVATION, input_shape=(32, 32, 3), kernel_initializer = initializer))
 model.add(layers.Dropout(DROPOUT))
 model.add(layers.MaxPooling2D((2, 2)))
 
-model.add(layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION))
+model.add(layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer))
 model.add(layers.Dropout(DROPOUT))
 model.add(layers.MaxPooling2D((2, 2)))
 
-model.add(layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION))
+model.add(layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer))
 model.add(layers.Dropout(DROPOUT))
 model.summary()
 
 model.add(layers.Flatten())
-model.add(layers.Dense(64*DIFFICULITY, activation=ACTIVATION))
+model.add(layers.Dense(64*DIFFICULITY, activation=ACTIVATION, kernel_initializer = initializer))
 model.add(layers.Dropout(DROPOUT))
 model.add(tf.keras.layers.BatchNormalization())
-model.add(layers.Dense(10))
+model.add(layers.Dense(10, kernel_initializer = initializer))
 model.summary()
 
-model.compile(optimizer=OPTIMIZER,
+
+lr_schedule = optimizers.schedules.ExponentialDecay(
+    initial_learning_rate=INIT_LEARNING_RATE,
+    decay_steps=1000,
+    decay_rate=DECAY_RATE)
+
+adam_optimizer = optimizers.Adam(learning_rate=lr_schedule)
+model.compile(optimizer=adam_optimizer,
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
               metrics=['accuracy'])
 
