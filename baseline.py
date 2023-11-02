@@ -4,6 +4,7 @@ import datetime
 
 from tensorflow.keras import datasets, layers, models
 import matplotlib.pyplot as plt
+from tensorflow import math
 
 # CNN training and testing params
 LEARNING_RATE = 0.001
@@ -69,3 +70,14 @@ plt.show()
 
 test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=2)
 print(test_acc)
+
+# https://www.tensorflow.org/api_docs/python/tf/keras/Model#call
+test_predictions = model(test_images)
+# https://www.enthought.com/blog/deep-learning-extracting/
+# see multi-class classification section
+test_predictions = tf.nn.softmax(test_predictions)
+test_predictions = test_predictions.numpy().argmax(axis=1)
+print(test_predictions[0:10])
+print(test_labels)
+# https://www.tensorflow.org/api_docs/python/tf/math/confusion_matrix
+print(math.confusion_matrix(test_labels, test_predictions, len(class_names)))
