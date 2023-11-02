@@ -5,6 +5,7 @@ import datetime
 from tensorflow.keras import datasets, layers, models
 import matplotlib.pyplot as plt
 from tensorflow import math
+import numpy as np
 
 # CNN training and testing params
 LEARNING_RATE = 0.001
@@ -14,13 +15,18 @@ BATCH_SIZE = 60
 VERBOSE = 1
 NB_CLASSES = 10
 N_HIDDEN = 128
-VALIDATION_SPLIT = 0.55
+VALIDATION_SPLIT = 0.2
 OPTIMIZER = 'adam'
 ACTIVATION = 'relu'
 DROPOUT = 0.1
 DIFFICULITY = 2
 
 (train_images, train_labels), (test_images, test_labels) = datasets.cifar10.load_data()
+
+# Shuffle data to hopefully get balanced class representation
+idx_permutes = np.random.permutation(len(train_images))
+train_images = train_images[idx_permutes]
+train_labels = train_labels[idx_permutes]
 
 # Standardize pixel values
 train_images = (train_images - train_images.mean())/(train_images.std())
@@ -57,8 +63,10 @@ model.compile(optimizer=OPTIMIZER,
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=VERBOSE,
-                    validation_data=(test_images, test_labels), callbacks=[tensorboard_callback])
+# history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=VERBOSE,
+#                     validation_data=(test_images, test_labels), callbacks=[tensorboard_callback])
+
+history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, verbose=VERBOSE, callbacks=[tensorboard_callback])
 
 
 loss = history.history["loss"]
