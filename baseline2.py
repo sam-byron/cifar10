@@ -11,7 +11,7 @@ import numpy as np
 INIT_LEARNING_RATE = 0.001
 DECAY_RATE = 0.9
 # REGULARIZATION
-EPOCHS = 30
+EPOCHS = 60
 BATCH_SIZE = 128
 VERBOSE = 1
 NB_CLASSES = 10
@@ -48,24 +48,34 @@ x = data_augmentation(inputs)
 x = layers.Rescaling(1./255)(x)
 # x = layers.Normalization()(x)
 
-x = layers.Conv2D(64*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer, padding="same")(x)
+x = layers.Conv2D(64*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
+x = layers.BatchNormalization()(x) 
+x = layers.Activation(ACTIVATION)(x)
 x = layers.SpatialDropout2D(DROPOUT)(x)
 # x = layers.MaxPooling2D((2, 2))(x)
 
-x = layers.Conv2D(128*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer, padding="same")(x)
+x = layers.Conv2D(128*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
+x = layers.BatchNormalization()(x) 
+x = layers.Activation(ACTIVATION)(x)
 x = layers.SpatialDropout2D(DROPOUT)(x)
 skip = layers.MaxPooling2D((2, 2))(x)
 
-x = layers.Conv2D(256*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer, padding="same")(skip)
+x = layers.Conv2D(256*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(skip)
+x = layers.BatchNormalization()(x) 
+x = layers.Activation(ACTIVATION)(x)
 x = layers.SpatialDropout2D(DROPOUT)(x)
 # x = layers.MaxPooling2D((2, 2))(x)
 
 merge = concatenate([x, skip], axis=3)
-x = layers.Conv2D(1024*DIFFICULITY, (3, 3), activation=ACTIVATION, kernel_initializer = initializer, padding="same")(merge)
+x = layers.Conv2D(1024*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(merge)
+x = layers.BatchNormalization()(x) 
+x = layers.Activation(ACTIVATION)(x)
 x = layers.SpatialDropout2D(DROPOUT)(x)
 x = layers.MaxPooling2D((2, 2))(x)
 
 x = layers.Flatten()(x)
+# x = layers.Dense(128*DIFFICULITY, activation=ACTIVATION, kernel_initializer = initializer)(x)
+# x = layers.Dropout(DROPOUT)(x)
 # x = layers.Dense(128*DIFFICULITY, activation=ACTIVATION, kernel_initializer = initializer)(x)
 # x = layers.Dropout(DROPOUT)(x)
 outputs = layers.Dense(10, kernel_initializer = initializer)(x)
