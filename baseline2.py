@@ -2,7 +2,6 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import datasets, layers, models, optimizers, initializers
-from keras.layers import concatenate
 import matplotlib.pyplot as plt
 from tensorflow import math
 import numpy as np
@@ -11,7 +10,7 @@ import numpy as np
 INIT_LEARNING_RATE = 0.001
 DECAY_RATE = 0.9
 # REGULARIZATION
-EPOCHS = 60
+EPOCHS = 45
 BATCH_SIZE = 128
 VERBOSE = 1
 NB_CLASSES = 10
@@ -43,41 +42,47 @@ data_augmentation = keras.Sequential(
     ]
 )
 
+# PREPROCESSING, DATA AUGMENTATION
 inputs = keras.Input(shape=(32, 32, 3))
 x = data_augmentation(inputs)
 x = layers.Rescaling(1./255)(x)
 # x = layers.Normalization()(x)
 
+# CNN LAYER 1
 x = layers.Conv2D(64*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
 x = layers.SpatialDropout2D(DROPOUT)(x)
 # x = layers.MaxPooling2D((2, 2))(x)
 
+# CNN LAYER 2
 x = layers.Conv2D(128*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
-x = layers.BatchNormalization()(x) 
-x = layers.Activation(ACTIVATION)(x)
-x = layers.SpatialDropout2D(DROPOUT)(x)
-skip = layers.MaxPooling2D((2, 2))(x)
-
-x = layers.Conv2D(256*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(skip)
-x = layers.BatchNormalization()(x) 
-x = layers.Activation(ACTIVATION)(x)
-x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.MaxPooling2D((2, 2))(x)
-
-merge = concatenate([x, skip], axis=3)
-x = layers.Conv2D(1024*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(merge)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
 x = layers.SpatialDropout2D(DROPOUT)(x)
 x = layers.MaxPooling2D((2, 2))(x)
 
+# CNN LAYER 3
+residual = x
+x = layers.Conv2D(256*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
+# x = layers.Concatenate(axis=3)([x, residual])
+x = layers.BatchNormalization()(x) 
+x = layers.Activation(ACTIVATION)(x)
+x = layers.SpatialDropout2D(DROPOUT)(x)
+# x = layers.MaxPooling2D((2, 2))(x)
+
+# CNN LAYER 4
+# residual = x
+x = layers.Concatenate(axis=3)([x, residual])
+x = layers.Conv2D(1024*DIFFICULITY, 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
+x = layers.BatchNormalization()(x) 
+x = layers.Activation(ACTIVATION)(x)
+# x = layers.Concatenate(axis=3)([x, residual])
+x = layers.SpatialDropout2D(DROPOUT)(x)
+x = layers.MaxPooling2D((2, 2))(x)
+
 x = layers.Flatten()(x)
-# x = layers.Dense(128*DIFFICULITY, activation=ACTIVATION, kernel_initializer = initializer)(x)
-# x = layers.Dropout(DROPOUT)(x)
-# x = layers.Dense(128*DIFFICULITY, activation=ACTIVATION, kernel_initializer = initializer)(x)
-# x = layers.Dropout(DROPOUT)(x)
+
 outputs = layers.Dense(10, kernel_initializer = initializer)(x)
 model = keras.Model(inputs=inputs, outputs=outputs)
 model.summary()
@@ -118,35 +123,35 @@ plt.ylim([0.5, 1])
 plt.legend(loc='lower right')
 plt.show()
 
-# test_loss, test_acc = model.evaluate(o_test_images,  test_labels, verbose=2)
-# print(test_acc)
+test_loss, test_acc = model.evaluate(o_test_images,  test_labels, verbose=2)
+print(test_acc)
 
-# # https://www.tensorflow.org/api_docs/python/tf/keras/Model#call
-# test_predictions = model(o_test_images)
-# # https://www.enthought.com/blog/deep-learning-extracting/
-# # see multi-class classification section
-# test_predictions = tf.nn.softmax(test_predictions)
-# test_predictions = test_predictions.numpy().argmax(axis=1)
-# print(test_predictions[0:10])
-# test_labels = test_labels.ravel()
-# print(test_labels)
-# # https://www.tensorflow.org/api_docs/python/tf/math/confusion_matrix
-# print(math.confusion_matrix(test_labels, test_predictions, len(class_names)))
+# https://www.tensorflow.org/api_docs/python/tf/keras/Model#call
+test_predictions = model.predict(o_test_images)
+# https://www.enthought.com/blog/deep-learning-extracting/
+# see multi-class classification section
+test_predictions = tf.nn.softmax(test_predictions)
+test_predictions = test_predictions.numpy().argmax(axis=1)
+print(test_predictions[0:10])
+test_labels = test_labels.ravel()
+print(test_labels)
+# https://www.tensorflow.org/api_docs/python/tf/math/confusion_matrix
+print(math.confusion_matrix(test_labels, test_predictions, len(class_names)))
 
 
-# mislabeled = tf.not_equal(test_predictions, test_labels)
+mislabeled = tf.not_equal(test_predictions, test_labels)
 
-# plt.clf()
-# # plt.figure(figsize=(10,10))
-# for i in range(100):
-#     plt.subplot(10,10,i+1)
-#     plt.xticks([])
-#     plt.yticks([])
-#     plt.grid(False)
-#     if mislabeled[i]:
-#         plt.imshow(o_test_images[i])
-#         # The CIFAR labels happen to be arrays, 
-#         # which is why you need the extra index
-#         plt.xlabel(class_names[test_predictions[i]])
-# plt.show()
+plt.clf()
+# plt.figure(figsize=(10,10))
+for i in range(100):
+    plt.subplot(10,10,i+1)
+    plt.xticks([])
+    plt.yticks([])
+    plt.grid(False)
+    if mislabeled[i]:
+        plt.imshow(o_test_images[i])
+        # The CIFAR labels happen to be arrays, 
+        # which is why you need the extra index
+        plt.xlabel(class_names[test_predictions[i]])
+plt.show()
 
