@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import datasets, layers, models, optimizers, initializers
+from tensorflow.keras import datasets, layers, models, optimizers, initializers, metrics, utils
 import matplotlib.pyplot as plt
 from tensorflow import math
 import numpy as np
@@ -10,7 +10,7 @@ import numpy as np
 INIT_LEARNING_RATE = 0.001
 DECAY_RATE = 0.9
 # REGULARIZATION
-EPOCHS = 45
+EPOCHS = 10
 BATCH_SIZE = 128
 VERBOSE = 1
 NB_CLASSES = 10
@@ -35,10 +35,10 @@ initializer = initializers.GlorotNormal()
 data_augmentation = keras.Sequential(
     [
         layers.RandomFlip("horizontal"),
-        # layers.RandomRotation(0.05),
+        layers.RandomBrightness(0.2),
+        layers.RandomRotation(0.05),
         layers.RandomZoom((-0.3, 0.3)),
-        # layers.RandomContrast(0.2)
-        # layers.RandomTranslation((-0.2, 0.2), (-0.2, 0.2))
+        layers.RandomContrast(0.2)
     ]
 )
 
@@ -83,7 +83,7 @@ x = layers.MaxPooling2D((2, 2))(x)
 
 x = layers.Flatten()(x)
 
-outputs = layers.Dense(10, kernel_initializer = initializer)(x)
+outputs = layers.Dense(10, kernel_initializer = initializer, activation="softmax")(x)
 model = keras.Model(inputs=inputs, outputs=outputs)
 model.summary()
 
@@ -130,16 +130,25 @@ print(test_acc)
 test_predictions = model.predict(o_test_images)
 # https://www.enthought.com/blog/deep-learning-extracting/
 # see multi-class classification section
-test_predictions = tf.nn.softmax(test_predictions)
-test_predictions = test_predictions.numpy().argmax(axis=1)
-print(test_predictions[0:10])
 test_labels = test_labels.ravel()
-print(test_labels)
+max_test_predictions = test_predictions.argmax(axis=1)
 # https://www.tensorflow.org/api_docs/python/tf/math/confusion_matrix
-print(math.confusion_matrix(test_labels, test_predictions, len(class_names)))
+print("CONFUSION MATRIX")
+print(math.confusion_matrix(test_labels, max_test_predictions, len(class_names)))
+ohe_test_labels = utils.to_categorical(test_labels)
+print("MICRO(CLASS AVGs) F1 SCORE ")
+f1_micro = metrics.F1Score(average="micro")
+f1_micro.update_state(ohe_test_labels, test_predictions)
+print(f1_micro.result().numpy)
+print("CLASS F1 SCORES")
+f1 = metrics.F1Score()
+f1.update_state(ohe_test_labels, test_predictions)
+print(f1.result().numpy)
 
 
-mislabeled = tf.not_equal(test_predictions, test_labels)
+
+
+mislabeled = tf.not_equal(max_test_predictions, test_labels)
 
 plt.clf()
 # plt.figure(figsize=(10,10))
@@ -152,6 +161,6 @@ for i in range(100):
         plt.imshow(o_test_images[i])
         # The CIFAR labels happen to be arrays, 
         # which is why you need the extra index
-        plt.xlabel(class_names[test_predictions[i]])
+        plt.xlabel(class_names[max_test_predictions[i]])
 plt.show()
 
