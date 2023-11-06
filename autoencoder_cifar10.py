@@ -60,8 +60,8 @@ class CVAE(tf.keras.Model):
     self.decoder = tf.keras.Sequential(
         [
             tf.keras.layers.InputLayer(input_shape=(latent_dim,)),
-            tf.keras.layers.Dense(8*8*3*32, activation=tf.nn.relu),
-            tf.keras.layers.Reshape(target_shape=(8, 8, 3*32)),
+            tf.keras.layers.Dense(8*8*256, activation=tf.nn.relu),
+            tf.keras.layers.Reshape(target_shape=(8, 8, 256)),
             tf.keras.layers.Conv2DTranspose(
                 filters=256, kernel_size=3, strides=1, padding='same',
                 activation='relu'),
