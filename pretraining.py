@@ -1,5 +1,5 @@
 from tensorflow import keras
-from tensorflow.keras import layers
+from tensorflow.keras import layers, callbacks
 import tensorflow as tf
 
 # LOAD DATASET
@@ -18,8 +18,9 @@ test_size = x_test.shape[0]
 # ENCODER
 
 encoder_inputs = keras.Input(shape=DATA_SHAPE)
-x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_inputs)
-x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
+x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(encoder_inputs)
+x = layers.Conv2D(128, 3, activation="relu", strides=2, padding="same")(x)
+x = layers.Conv2D(256, 3, activation="relu", strides=1, padding="same")(x)
 x = layers.Flatten()(x)
 x = layers.Dense(16, activation="relu")(x)
 z_mean = layers.Dense(LATENT_DIM, name="z_mean")(x)
@@ -38,10 +39,11 @@ class Sampler(layers.Layer):
         return z_mean + tf.exp(0.5 * z_log_var) * epsilon
     
 latent_inputs = keras.Input(shape=(LATENT_DIM,))
-x = layers.Dense(8 * 8 * 64, activation="relu")(latent_inputs)
-x = layers.Reshape((8, 8, 64))(x)
+x = layers.Dense(8 * 8 * 256, activation="relu")(latent_inputs)
+x = layers.Reshape((8, 8, 256))(x)
+x = layers.Conv2DTranspose(256, 3, activation="relu", strides=1, padding="same")(x)
+x = layers.Conv2DTranspose(128, 3, activation="relu", strides=2, padding="same")(x)
 x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
-x = layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
 decoder_outputs = layers.Conv2D(3, 3, activation="sigmoid", padding="same")(x)
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 
@@ -91,7 +93,7 @@ class VAE(keras.Model):
         }
     
 
-# TRAINING VAE
+# RUN VAE
 
 import numpy as np
 
@@ -100,4 +102,4 @@ x_test = x_test / 255
 
 vae = VAE(encoder, decoder)
 vae.compile(optimizer=keras.optimizers.Adam(), run_eagerly=True)
-vae.fit(x_train, epochs=EPOCHS, batch_size=BATCH_SIZE)
+vae.fit(x_train, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=2, callbacks=[callbacks.ProgbarLogger(count_mode="steps")])
