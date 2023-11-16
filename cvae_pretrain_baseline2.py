@@ -14,15 +14,15 @@ for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 
 # CONTROL PARAMETERS
-PRETRAIN = False
+PRETRAIN = True
 SAVE_VAE = False
-USE_PRETRAIN = False
+USE_PRETRAIN = True
 CLASSIFY = True
 VAE_LOCATION = '/home/sambyron/engineering/ML/tensorflow/cifar10/model/'
 
 
 # HYPER-PARAMETERS
-EPOCHS = 5
+EPOCHS = 20
 # set the dimensionality of the latent space to a plane for visualization later
 LATENT_DIM = 1024
 LEARNING_RATE = 0.0001
@@ -85,7 +85,7 @@ x_test = x_test / 255
 
 # x_train = x_train[0:1000]
 
-# x_train = x_train[1:10000]
+x_train = x_train[1:10000]
 
 DATA_SHAPE = x_train.shape[1:]
 train_size = x_train.shape[0]
@@ -204,41 +204,13 @@ class VAE(keras.Model):
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
             "kl_loss": self.kl_loss_tracker.result(),
         }
-    
-    def generate_and_save_images(self, epoch, test_sample):
-        x = test_sample
-        x = self.convbase(x)
-        z_mean, z_log_var = self.encoder(x)
-        z = self.sampler(z_mean, z_log_var)
-        reconstruction = self.decoder(z)
-    
-        fig = plt.figure(figsize=(4, 4))
-
-        for i in range(reconstruction.shape[0]):
-            plt.subplot(4, 4, i + 1)
-            plt.imshow(reconstruction[i, :, :, :])
-            plt.axis('off')
-
-        # tight_layout minimizes the overlap between 2 sub-plots
-        plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
-        plt.show()
 
 # RUN VAE
 
 import numpy as np
+import matplotlib.pyplot as plt
 
-vae = VAE(encoder, decoder)
-lr_schedule = optimizers.schedules.ExponentialDecay(
-        initial_learning_rate=LEARNING_RATE,
-        decay_steps=10000,
-        decay_rate=DECAY_RATE)
-vae.compile(optimizer=keras.optimizers.Adam(learning_rate=lr_schedule), run_eagerly=True)
-if PRETRAIN:
-    vae.fit(x_train, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=2)
-
-    if SAVE_VAE:
-        vae.save_weights(VAE_LOCATION)
-        # vae.save(VAE_LOCATION, save_format="tf")
+def generate_and_save_images(cvae, epoch, test_sample):
 
     x = vae.convbase(x_test)
     z_mean, z_log_var = vae.encoder.predict(x)
@@ -246,7 +218,7 @@ if PRETRAIN:
     z = sampler(z_mean, z_log_var)
     decoded_imgs = decoder.predict(z)
 
-    import matplotlib.pyplot as plt
+    
 
     n = 10
     plt.figure(figsize=(20, 4))
@@ -266,7 +238,29 @@ if PRETRAIN:
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
-    plt.show()
+    plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
+
+
+class generate_save_callback(keras.callbacks.Callback):
+    def __init__(self, test_samples, **kwargs):
+        super().__init__(**kwargs)
+        self.test_samples = test_samples
+   
+    def on_epoch_end(self, epoch, logs=None):
+        if epoch % 5 == 0:
+            generate_and_save_images(self.model, epoch, x_test)
+
+vae = VAE(encoder, decoder)
+lr_schedule = optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=LEARNING_RATE,
+        decay_steps=10000,
+        decay_rate=DECAY_RATE)
+vae.compile(optimizer=keras.optimizers.Adam(learning_rate=lr_schedule), run_eagerly=True)
+if PRETRAIN:
+    vae.fit(x_train, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=2, callbacks=[generate_save_callback(x_test)])
+
+    if SAVE_VAE:
+        vae.save_weights(VAE_LOCATION)
 
 #================================================================================
 #================================================================================
@@ -278,7 +272,7 @@ if CLASSIFY:
     INIT_LEARNING_RATE = 0.001
     DECAY_RATE = 0.9
     # REGULARIZATION
-    EPOCHS = 100
+    EPOCHS = 60
     BATCH_SIZE = 128
     VERBOSE = 1
     NB_CLASSES = 10
