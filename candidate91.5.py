@@ -8,34 +8,7 @@ import numpy as np
 import keras_cv
 # from keras_cv import utils
 from keras_cv.layers import BaseImageAugmentationLayer
-
-class GrayscaleLayer(keras_cv.layers.BaseImageAugmentationLayer):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # self.factor = factor
-
-    # def get_random_transformation(self, **kwargs):
-    #     # kwargs holds {"images": image, "labels": label, etc...}
-    #     return self.factor
-
-    def augment_image(self, image, transformation=None, **kwargs):
-        sample = np.random.uniform(0,1,1)
-
-        # sample = keras_cv.NormalFactorSampler(mean=0, stddev=1, min_value=0.0, max_value=1.0)
-        if sample > 0.5:
-            converted = tf.image.rgb_to_grayscale(image)
-            return converted
-        else:
-            return image
-    
-    def augment_label(self, label, transformation=None, **kwargs):
-        # you can use transformation somehow if you want
-        return label
-    
-    def augment_bounding_boxes(self, bounding_boxes, transformation=None, **kwargs):
-        # you can also perform no-op augmentations on label types to support them in
-        # your pipeline.
-        return bounding_boxes
+from visualization import plot_performance, confusion_matrix, plot_mislabeled
     
 class RandSaturationHue(keras_cv.layers.BaseImageAugmentationLayer):
     def __init__(self, **kwargs):
@@ -64,7 +37,7 @@ mixed_precision.set_global_policy(policy)
 INIT_LEARNING_RATE = 0.001
 DECAY_RATE = 0.9
 # REGULARIZATION
-EPOCHS = 200
+EPOCHS = 2
 BATCH_SIZE = 128
 VERBOSE = 1
 NB_CLASSES = 10
@@ -79,8 +52,6 @@ for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 
 (o_train_images, train_labels), (o_test_images, test_labels) = datasets.cifar10.load_data()
-# o_train_images = np.mean(o_train_images, axis=3)
-# o_test_images = np.mean(o_test_images, axis=3)
 
 
 # Shuffle data to hopefully get balanced class representation
@@ -102,7 +73,6 @@ data_augmentation = keras.Sequential(
         layers.RandomContrast(0.2), #GOOD learning rate
         layers.RandomCrop(28,28), #SLOW-AVG learning rate (poor acc performance?), smaller number of params
         layers.RandomTranslation(0.2,0.2), #AVG learning rate
-        # GrayscaleLayer(),
         # RandSaturationHue(),
     ]
 )
@@ -126,7 +96,7 @@ x = layers.BatchNormalization()(x)
 x = layers.Activation(ACTIVATION)(x)
 
 x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.add([x, residual])
+
 x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 
@@ -135,10 +105,8 @@ residual = x
 x = layers.Conv2D(math.floor(32*DIFFICULITY), 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
-# x = layers.Concatenate(axis=3)([x, residual])
 x = layers.SpatialDropout2D(DROPOUT)(x)
 x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 residual = x
 
 # CNN LAYER 4
@@ -147,8 +115,6 @@ x = layers.BatchNormalization()(x)
 x = layers.Activation(ACTIVATION)(x)
 residual = x
 x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 
@@ -156,11 +122,8 @@ residual = x
 x = layers.Conv2D(math.floor(128*DIFFICULITY), 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
-# x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 
@@ -168,11 +131,7 @@ residual = x
 x = layers.Conv2D(math.floor(128*DIFFICULITY), 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
-# x = layers.Concatenate(axis=3)([x, residual])
-# residual = x
 x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 
@@ -180,22 +139,16 @@ residual = x
 x = layers.Conv2D(math.floor(128*DIFFICULITY), 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
-# x = layers.Concatenate(axis=3)([x, residual])
-# residual = x
 x = layers.SpatialDropout2D(DROPOUT)(x)
 x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 residual = x
 
 # CNN LAYER 8
-# x = layers.Concatenate(axis=3)([x, residual])
 x = layers.Conv2D(math.floor(256*DIFFICULITY), 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
 residual = x
 x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 
@@ -203,10 +156,7 @@ residual = x
 x = layers.Conv2D(math.floor(256*DIFFICULITY), 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
-# x = layers.Concatenate(axis=3)([x, residual])
 x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 
@@ -214,11 +164,8 @@ residual = x
 x = layers.Conv2D(math.floor(256*DIFFICULITY), 3, kernel_initializer = initializer, padding="same", use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
-# x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 x = layers.SpatialDropout2D(DROPOUT)(x)
-# x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 
@@ -227,44 +174,19 @@ x = layers.Conv2D(math.floor(256*DIFFICULITY), 3, kernel_initializer = initializ
 x = layers.Concatenate(axis=3)([x, residual])
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
-# x = layers.Concatenate(axis=3)([x, residual])
 residual = x
 x = layers.SpatialDropout2D(DROPOUT)(x)
 x = layers.MaxPooling2D((2, 2))(x)
-# x = layers.add([x, residual])
 residual = x
 
 x = layers.Flatten()(x)
 residual = layers.Flatten()(residual)
-
-# x = layers.Dense(math.floor(256*DIFFICULITY), kernel_initializer = initializer, use_bias=False)(x)
-# x = layers.BatchNormalization()(x) 
-# x = layers.Activation(ACTIVATION)(x)
-# # x = layers.Concatenate(axis=1)([x, residual])
-# # residual = x
-# x = layers.Dropout(DROPOUT)(x)
-# # x = layers.add([x, residual])
-# residual = x
-
 
 x = layers.Dense(math.floor(512*DIFFICULITY), kernel_initializer = initializer, use_bias=False)(x)
 x = layers.BatchNormalization()(x) 
 x = layers.Activation(ACTIVATION)(x)
 x = layers.Dropout(DROPOUT)(x)
 x = layers.Concatenate(axis=1)([x, residual])
-# residual = x
-
-# x = layers.add([x, residual])
-# residual = x
-
-# x = layers.Dense(math.floor(256*DIFFICULITY), kernel_initializer = initializer, use_bias=False)(x)
-# x = layers.BatchNormalization()(x) 
-# x = layers.Activation(ACTIVATION)(x)
-# # x = layers.Concatenate(axis=1)([x, residual])
-# # residual = x
-# x = layers.Dropout(DROPOUT)(x)
-# x = layers.add([x, residual])
-# residual = x
 
 outputs = layers.Dense(10, kernel_initializer = initializer, activation="softmax")(x)
 model = keras.Model(inputs=inputs, outputs=outputs)
@@ -285,65 +207,11 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir="./logs", histogra
 
 history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, verbose=VERBOSE, callbacks=[tensorboard_callback])
 
-
-loss = history.history["loss"]
-val_loss = history.history["val_loss"]
-epochs = range(1, len(loss) + 1)
-plt.plot(epochs, loss, "bo", label="Training Loss")
-plt.plot(epochs, val_loss, "b", label="Validation Loss")
-plt.title("Training and Validation Loss")
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-plt.show()
-
-plt.clf()
-plt.plot(history.history["sparse_categorical_accuracy"], label="sparse_categorical_accuracy")
-plt.plot(history.history['val_sparse_categorical_accuracy'], label = 'val_sparse_categorical_accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.ylim([0.5, 1])
-plt.legend(loc='lower right')
-plt.show()
+plot_performance(history)
 
 test_loss, test_acc = model.evaluate(o_test_images,  test_labels, verbose=2)
 print(test_acc)
 
-# https://www.tensorflow.org/api_docs/python/tf/keras/Model#call
-test_predictions = model.predict(o_test_images)
-# https://www.enthought.com/blog/deep-learning-extracting/
-# see multi-class classification section
-test_labels = test_labels.ravel()
-max_test_predictions = test_predictions.argmax(axis=1)
-# https://www.tensorflow.org/api_docs/python/tf/math/confusion_matrix
-print("CONFUSION MATRIX")
-print(tf.math.confusion_matrix(test_labels, max_test_predictions, len(class_names)))
-ohe_test_labels = tf.keras.utils.to_categorical(test_labels)
-print("MICRO(CLASS AVGs) F1 SCORE ")
-f1_micro = metrics.F1Score(average="micro")
-f1_micro.update_state(ohe_test_labels, test_predictions)
-print(f1_micro.result().numpy)
-print("CLASS F1 SCORES")
-f1 = metrics.F1Score()
-f1.update_state(ohe_test_labels, test_predictions)
-print(f1.result().numpy)
+confusion_matrix(model, o_test_images, test_labels, len(class_names))
 
-
-
-
-mislabeled = tf.not_equal(max_test_predictions, test_labels)
-
-plt.clf()
-# plt.figure(figsize=(10,10))
-for i in range(100):
-    plt.subplot(10,10,i+1)
-    plt.xticks([])
-    plt.yticks([])
-    plt.grid(False)
-    if mislabeled[i]:
-        plt.imshow(o_test_images[i])
-        # The CIFAR labels happen to be arrays, 
-        # which is why you need the extra index
-        plt.xlabel(class_names[max_test_predictions[i]])
-plt.show()
-
+plot_mislabeled(model, o_test_images, test_labels, class_names)
