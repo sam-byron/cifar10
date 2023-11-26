@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import models, metrics, utils
+from cvae import Sampler
+import tensorflow_probability as tfp
+
 
 
 def plot_performance(history):
@@ -66,4 +69,54 @@ def plot_mislabeled(model, x, y, class_names):
             # The CIFAR labels happen to be arrays, 
             # which is why you need the extra index
             plt.xlabel(class_names[max_test_predictions[i]])
+    plt.show()
+
+
+def plot_latent_images(cvae, x, latent_dim, n=10, digit_size=32):
+    """Plots n x n digit images decoded from the latent space."""
+    plt.clf()
+    
+    norm = tfp.distributions.Normal(0, 1)
+
+    o_x = x
+    image_width = digit_size*n
+    image_height = image_width
+
+    z_mean = norm.sample((100, latent_dim))
+    z_log_var = norm.sample((100, latent_dim))
+    z = cvae.sampler(z_mean, z_log_var)
+    z_decoded = cvae.decoder.predict(z)
+
+    # x_decoded = cvae.decode(x)
+    x = cvae.convbase1.predict(x)
+    x = cvae.convbase2.predict(x)
+    z_mean, z_log_var = cvae.encoder.predict(x)
+    sampler = Sampler()
+    s = sampler(z_mean, z_log_var)
+    x_decoded = cvae.decoder.predict(s)
+
+    noisy_x = s*z
+    noisy_x_decoded = cvae.decoder.predict(noisy_x)
+
+    n = 10
+    plt.figure(figsize=(20, 4))
+    for i in range(n):
+    # display original
+        ax = plt.subplot(2, n, i + 1)
+        plt.imshow(o_x[i])
+        plt.title("original")
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
+        # display reconstruction
+        ax = plt.subplot(2, n, i + 1 + n)
+        plt.imshow(x_decoded[i])
+        # plt.imshow(z_decoded[i])
+
+        plt.title("reconstructed")
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
     plt.show()
