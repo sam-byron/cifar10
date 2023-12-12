@@ -44,7 +44,7 @@ class Sampler(layers.Layer):
         return z_mean + tf.exp(0.5 * z_log_var) * epsilon
         # return z_mean + tf.exp(tf.cast(0.5, tf.float16) * z_log_var)
 
-def generate_and_save_images(cvae, epoch, test_sample, save_folder, save):
+def generate_and_save_images(cvae, epoch, test_sample, save_folder, save, generated_imgs_folder):
 
     if save:
         print("SAVING WEIGHTS AND IMAGES")
@@ -74,12 +74,12 @@ def generate_and_save_images(cvae, epoch, test_sample, save_folder, save):
         # display reconstruction
         ax = plt.subplot(2, n, i + 1 + n)
         plt.imshow(decoded_imgs[i])
-        plt.title("reconstructed")
+        plt.title("decoded")
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
-    plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
-
+    plt.savefig(generated_imgs_folder+'image_at_epoch_{:04d}.png'.format(epoch))
+    plt.clf()
 
 class generate_save_callback(keras.callbacks.Callback):
     def __init__(self, test_samples, **kwargs):
