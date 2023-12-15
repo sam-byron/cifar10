@@ -18,17 +18,13 @@ physical_devices = tf.config.list_physical_devices('GPU')
 for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 
-# CNN training and testing params
-INIT_LEARNING_RATE = 0.001
-DECAY_RATE = 0.9
-EPOCHS = 300
-BATCH_SIZE = 128
+# Hyperparamers tuner params
+BATCHSIZE = 128
 VERBOSE = 1
-NB_CLASSES = 10
-VALIDATION_SPLIT = 0.2
-OPTIMIZER = 'adam'
-ACTIVATION = 'relu'
-DROPOUT = 0.1
+MAXTRIALS = 1000
+EXECSPERTRIAL = 1
+EPOCHS = 60
+SEARCH = True
 
 physical_devices = tf.config.list_physical_devices('GPU') 
 for device in physical_devices:
@@ -57,20 +53,20 @@ def build_model(hp):
     # x = layers.Normalization()(x)
 
     # CNN BLOCK 1
-    units1 = hp.Int(name="units1", min_value=16, max_value=64, step=16)
-    layers1 = hp.Int(name="layers1", min_value=1, max_value=4, step=1)
+    units1 = hp.Int(name="units1", min_value=16, max_value=128, step=16)
+    layers1 = hp.Int(name="layers1", min_value=1, max_value=5, step=1)
     dropout1 = hp.Float(name="dropout1", min_value=0, max_value=0.5, step=0.1)
     x = residual_block(x, units1, layers1, strides=2, dropout=dropout1)
 
     # CNN BLOCK 2
-    units2 = hp.Int(name="units2", min_value=64, max_value=128, step=16)
-    layers2 = hp.Int(name="layers2", min_value=1, max_value=4, step=1)
+    units2 = hp.Int(name="units2", min_value=64, max_value=256, step=32)
+    layers2 = hp.Int(name="layers2", min_value=1, max_value=5, step=1)
     dropout2 = hp.Float(name="dropout2", min_value=0, max_value=0.5, step=0.1)
     x = residual_block(x, units2, layers2, strides=2, dropout=dropout2)
 
     # CNN BLOCK 3
-    units3 = hp.Int(name="units3", min_value=128, max_value=256, step=16)
-    layers3 = hp.Int(name="layers3", min_value=1, max_value=4, step=1)
+    units3 = hp.Int(name="units3", min_value=128, max_value=512, step=64)
+    layers3 = hp.Int(name="layers3", min_value=1, max_value=5, step=1)
     dropout3 = hp.Float(name="dropout3", min_value=0, max_value=0.5, step=0.1)
     x = residual_block(x, units3, layers3, strides=2, dropout=dropout3)
 
@@ -78,8 +74,8 @@ def build_model(hp):
     x = layers.Flatten()(x)
 
     # DENSE BLOCK 1
-    dense_units1 = hp.Int(name="dense_units1", min_value=256, max_value=512, step=64)
-    dense_layers = hp.Int(name="dense_layers", min_value=1, max_value=4, step=1)
+    dense_units1 = hp.Int(name="dense_units1", min_value=128, max_value=1024, step=128)
+    dense_layers = hp.Int(name="dense_layers", min_value=1, max_value=5, step=1)
     dropout4 = hp.Float(name="dropout4", min_value=0, max_value=0.5, step=0.1)
     x = dense_block(x, dense_units1, dense_layers, dropout=dropout4)
 
@@ -87,7 +83,7 @@ def build_model(hp):
     model = keras.Model(inputs=inputs, outputs=outputs)
     # model.summary()
 
-    optimizer = hp.Choice(name="optimizer", values=["rmsprop", "adam"])
+    optimizer = hp.Choice(name="optimizer", values=["rmsprop", "adam", "sgd"])
     model.compile(optimizer=optimizer,
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
               metrics=["sparse_categorical_accuracy"])
@@ -95,14 +91,14 @@ def build_model(hp):
     return model
 
 
-
 tuner = kt.BayesianOptimization(
     build_model,
     objective="val_sparse_categorical_accuracy",
-    max_trials=1000,
-    executions_per_trial=1,
+    max_trials=MAXTRIALS,
+    executions_per_trial=EXECSPERTRIAL,
     directory="cifar10_kt_test",
-    overwrite=True,
+    overwrite=False,
+    distribution_strategy=tf.distribute.MirroredStrategy(),
 )
 
 tuner.search_space_summary()
@@ -119,47 +115,49 @@ y_train, y_val = y_train[:-num_val_samples], y_train[-num_val_samples:]
 callbacks = [
     keras.callbacks.EarlyStopping(monitor="val_loss", patience=5),
 ]
-tuner.search(
-    x_train, y_train,
-    batch_size=128,
-    epochs=40,
-    validation_data=(x_val, y_val),
-    callbacks=callbacks,
-    verbose=1,
-)
-
-top_n = 4
-best_hps = tuner.get_best_hyperparameters(top_n)
-
-def get_best_epoch(hp):
-    model = build_model(hp)
-    callbacks=[
-        keras.callbacks.EarlyStopping(
-            monitor="val_loss", mode="min", patience=10)
-    ]
-    history = model.fit(
+if SEARCH:
+    tuner.search(
         x_train, y_train,
+        batch_size=BATCHSIZE,
+        epochs=EPOCHS,
         validation_data=(x_val, y_val),
-        epochs=100,
-        batch_size=128,
-        callbacks=callbacks)
-    val_loss_per_epoch = history.history["val_loss"]
-    best_epoch = val_loss_per_epoch.index(min(val_loss_per_epoch)) + 1
-    print(f"Best epoch: {best_epoch}")
-    return best_epoch
+        callbacks=callbacks,
+        verbose=VERBOSE,
+    )
 
-def get_best_trained_model(hp):
-    best_epoch = get_best_epoch(hp)
-    model = build_model(hp)
-    model.fit(
-        x_train_full, y_train_full,
-        batch_size=128, epochs=int(best_epoch * 1.2))
-    return model
+# top_n = 4
+# best_hps = tuner.get_best_hyperparameters(top_n)
+# print(best_hps)
 
-best_models = []
-for hp in best_hps:
-    model = get_best_trained_model(hp)
-    model.evaluate(x_test, y_test)
-    best_models.append(model)
+# def get_best_epoch(hp):
+#     model = build_model(hp)
+#     callbacks=[
+#         keras.callbacks.EarlyStopping(
+#             monitor="val_loss", mode="min", patience=10)
+#     ]
+#     history = model.fit(
+#         x_train, y_train,
+#         validation_data=(x_val, y_val),
+#         epochs=100,
+#         batch_size=128,
+#         callbacks=callbacks)
+#     val_loss_per_epoch = history.history["val_loss"]
+#     best_epoch = val_loss_per_epoch.index(min(val_loss_per_epoch)) + 1
+#     print(f"Best epoch: {best_epoch}")
+#     return best_epoch
 
-best_models = tuner.get_best_models(top_n)
+# def get_best_trained_model(hp):
+#     best_epoch = get_best_epoch(hp)
+#     model = build_model(hp)
+#     model.fit(
+#         x_train_full, y_train_full,
+#         batch_size=128, epochs=int(best_epoch * 1.2))
+#     return model
+
+# best_models = []
+# for hp in best_hps:
+#     model = get_best_trained_model(hp)
+#     model.evaluate(x_test, y_test)
+#     best_models.append(model)
+
+# best_models = tuner.get_best_models(top_n)
